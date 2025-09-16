@@ -128,8 +128,6 @@ async function calculateWeeklyStats() {
     const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
     const sismos = await fetchCombinedQuakeData(sevenDaysAgo, now);
 
-    const sortedSismos = sismos.sort((a, b) => a.time - b.time); // Ordena por tempo para os replays
-
     const magFilterStats = { range1: 0, range_M3: 0, range_M4: 0, range_M5: 0, range_M6: 0, range_M7: 0, range_M8: 0, range_M9plus: 0 };
     sortedSismos.forEach(sismo => {
         const mag = sismo.mag;
@@ -192,18 +190,19 @@ async function calculateWeeklyStats() {
     const sortedSismos = sismos.sort((a, b) => a.time - b.time); // Ordena por tempo (antigo para novo)
 
     const mapReplayPoints = sortedSismos.map(sismo => {
-    if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
-    const lon = sismo.geometry.coordinates[0];
-    const lat = sismo.geometry.coordinates[1];
-    if (lon == null || lat == null) return null;
-
-    return {
-        lon: lon,
-        lat: lat,
-        mag: sismo.mag,
-        color: getSismoColor(sismo.mag)
-    };
+        if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
+        const lon = sismo.geometry.coordinates[0];
+        const lat = sismo.geometry.coordinates[1];
+        if (lon == null || lat == null) return null;
+        
+        return {
+            lon: lon,
+            lat: lat,
+            mag: sismo.mag,
+            color: getSismoColor(sismo.mag)
+        };
     }).filter(p => p !== null);
+    // --- FIM DO BLOCO A ADICIONAR ---
 
     return {
         totalSismos: sortedSismos.length,
@@ -248,3 +247,4 @@ async function runAnalysis() {
 // Inicia o processo
 
 runAnalysis();
+
