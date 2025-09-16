@@ -36,7 +36,7 @@ function formatEarthquakeDateTime(timestamp) {
     return { formattedDate: `${day}/${monthIndex + 1}/${year}`, formattedTime: timeStr };
 }
 
-// --- 2. LÓGICA DE BUSCA DE DADOS (A MESMA DO STATS.JS) ---
+// --- 2. LÓGICA DE BUSCA DE DADOS ---
 
 async function fetchCombinedQuakeData(startTime, endTime) {
     const USGS_URL = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime.toISOString()}&endtime=${endTime.toISOString()}&minmagnitude=1.0`;
@@ -74,12 +74,11 @@ async function calculateDailyStats() {
     const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
     const sismos = await fetchCombinedQuakeData(yesterday, now);
     
-    const sortedSismos = sismos.sort((a, b) => a.time - b.time); 
+    // ORDENA PRIMEIRO!
+    const sortedSismos = sismos.sort((a, b) => a.time - b.time); // Ordena por tempo (antigo para novo)
 
     const magCounts = {};
-    sismos.forEach(quake => {
-    const magCounts = {};
-    sismos.forEach(quake => {
+    sortedSismos.forEach(quake => { // Usa a lista ordenada
         const magFloor = Math.floor(quake.mag);
         const key = `M${magFloor}`;
         magCounts[key] = (magCounts[key] || 0) + 1;
@@ -96,10 +95,11 @@ async function calculateDailyStats() {
         { depth: 50, position: 35 }, { depth: 100, position: 50 }, { depth: 400, position: 70 },
         { depth: 500, position: 78 }, { depth: 600, position: 86 }, { depth: 1000, position: 100 }
     ];
-    const maxDepthInSismos = Math.max(...sismos.map(s => Math.abs(s.depth) || 0), 0);
+    const maxDepthInSismos = Math.max(...sismos.map(s => Math.abs(s.depth) || 0), 0); // Pode usar 'sismos' aqui, não importa a ordem
     const finalMaxDepth = depthScale.find(s => s.depth >= maxDepthInSismos)?.depth || 1000;
 
     const timeWindow = 24 * 60 * 60 * 1000;
+    // CRÍTICO: Usa 'sortedSismos.map' para que os pontos estejam em ordem cronológica
     const scatterPlotPoints = sortedSismos.map(sismo => {
         const timeAgo = now - sismo.time;
         const left = (1 - (timeAgo / timeWindow)) * 100;
@@ -111,20 +111,20 @@ async function calculateDailyStats() {
         return { left, depth, size, color, info };
     });
 
-    const mapReplayPoints = sortedSismos.map(sismo => {
-        if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
-        const lon = sismo.geometry.coordinates[0];
-        const lat = sismo.geometry.coordinates[1];
-        if (lon == null || lat == null) return null;
-        
-        return {
-            lon: lon,
-            lat: lat,
-            mag: sismo.mag,
-            color: getSismoColor(sismo.mag)
-        };
-    }).filter(p => p !== null);
-    // --- FIM DA CORREÇÃO 1 ---
+    // Usa 'sortedSismos' que já foi criado
+    const mapReplayPoints = sortedSismos.map(sismo => {
+        if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
+        const lon = sismo.geometry.coordinates[0];
+        const lat = sismo.geometry.coordinates[1];
+        if (lon == null || lat == null) return null;
+        
+        return {
+            lon: lon,
+            lat: lat,
+            mag: sismo.mag,
+            color: getSismoColor(sismo.mag)
+        };
+    }).filter(p => p !== null);
 
     return {
         totalSismos: sismos.length,
@@ -133,7 +133,7 @@ async function calculateDailyStats() {
         gridMaxDepth: finalMaxDepth,
         depthScalePoints: depthScale.filter(s => s.depth <= finalMaxDepth),
         scatterPlotPoints: scatterPlotPoints,
-        mapReplayPoints: mapReplayPoints // Esta linha agora funciona
+        mapReplayPoints: mapReplayPoints
     };
 }
 
@@ -145,8 +145,8 @@ async function calculateWeeklyStats() {
     const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
     const sismos = await fetchCombinedQuakeData(sevenDaysAgo, now);
 
-    // Declaração ÚNICA de sortedSismos (para todos os cálculos nesta função)
-    const sortedSismos = sismos.sort((a, b) => a.time - b.time); 
+    // Declaração ÚNICA de sortedSismos (para todos os cálculos nesta função)
+    const sortedSismos = sismos.sort((a, b) => a.time - b.time); 
 
     const magFilterStats = { range1: 0, range_M3: 0, range_M4: 0, range_M5: 0, range_M6: 0, range_M7: 0, range_M8: 0, range_M9plus: 0 };
     sortedSismos.forEach(sismo => { // Usa o sortedSismos já existente
@@ -204,10 +204,9 @@ async function calculateWeeklyStats() {
         return { left, depth, size, color, info, mag: sismo.mag, dateKey: sismoDateKey };
     });
 
-    // --- ### CORREÇÃO 2: A LINHA DUPLICADA FOI REMOVIDA DAQUI ### ---
-    // (A linha 'const sortedSismos = ...' foi apagada)
+    // --- ### CORREÇÃO 2: A LINHA DUPLICADA 'const sortedSismos' FOI APAGADA DAQUI ### ---
 
-    const mapReplayPoints = sortedSismos.map(sismo => { // Agora usa o sortedSismos da linha 140
+    const mapReplayPoints = sortedSismos.map(sismo => { // Agora usa o sortedSismos da linha 144
         if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
         const lon = sismo.geometry.coordinates[0];
         const lat = sismo.geometry.coordinates[1];
@@ -263,4 +262,3 @@ async function runAnalysis() {
 
 // Inicia o processo
 runAnalysis();
-
