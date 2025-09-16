@@ -1,0 +1,9 @@
+{
+  "name": "streamnew-stats-backend",
+  "version": "1.0.0",
+  "description": "Script para pré-processar estatísticas sísmicas para o StreamNew Monitor",
+  "main": "processar_stats.js",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}

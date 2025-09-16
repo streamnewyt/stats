@@ -1,0 +1,47 @@
+name: Atualizar Cache de Estatísticas Sísmicas
+
+# Gatilho: Isto faz com que a Action corra a cada 30 minutos
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  # Isto também permite que você execute manualmente a partir do separador "Actions" do GitHub
+  workflow_dispatch:
+
+jobs:
+  build-stats:
+    runs-on: ubuntu-latest # Usa um servidor Linux padrão
+    steps:
+      
+      # 1. Baixa o código do teu repositório (para ter acesso aos scripts)
+      - name: Checkout do Repositório
+        uses: actions/checkout@v3
+
+      # 2. Configura o ambiente Node.js para correr o script
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16' # Usamos Node.js versão 16
+
+      # 3. Instala as dependências (o node-fetch do package.json)
+      - name: Instalar Dependências
+        run: npm install
+
+      # 4. EXECUTA O NOSSO SCRIPT!
+      # Isto irá gerar o ficheiro stats_cache.json na raiz
+      - name: Gerar Ficheiro de Stats
+        run: node processar_stats.js
+
+      # 5. FAZ O COMMIT AUTOMÁTICO: Pega no stats_cache.json gerado e
+      #    salva-o de volta no teu repositório.
+      - name: Commit do Ficheiro JSON
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "📊 [Bot] Atualização automática do cache de estatísticas"
+          # IMPORTANTE: Diz ao Action para salvar APENAS este ficheiro
+          file_pattern: stats_cache.json
+          # Adiciona o repositório e o branch (necessário para a Action funcionar)
+          repository: .
+          branch: main # Ou 'master', dependendo do nome do teu branch principal
+          commit_user_name: StreamNew Stats Bot # Nome do "Bot" que faz o commit
+          commit_user_email: streamnew@post.com # Email (pode ser o teu)
+          commit_author: StreamNew Stats Bot <streamnew@post.com>
