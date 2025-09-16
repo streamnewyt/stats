@@ -73,7 +73,11 @@ async function calculateDailyStats() {
     const now = new Date();
     const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
     const sismos = await fetchCombinedQuakeData(yesterday, now);
+    
+    const sortedSismos = sismos.sort((a, b) => a.time - b.time); 
 
+    const magCounts = {};
+    sismos.forEach(quake => {
     const magCounts = {};
     sismos.forEach(quake => {
         const magFloor = Math.floor(quake.mag);
@@ -96,7 +100,7 @@ async function calculateDailyStats() {
     const finalMaxDepth = depthScale.find(s => s.depth >= maxDepthInSismos)?.depth || 1000;
 
     const timeWindow = 24 * 60 * 60 * 1000;
-    const scatterPlotPoints = sismos.map(sismo => {
+    const scatterPlotPoints = sortedSismos.map(sismo => {
         const timeAgo = now - sismo.time;
         const left = (1 - (timeAgo / timeWindow)) * 100;
         const depth = Math.max(0, sismo.depth || (sismo.geometry ? sismo.geometry.coordinates[2] : 0));
@@ -106,9 +110,6 @@ async function calculateDailyStats() {
         const info = `M${sismo.mag.toFixed(1)} @ ${depth.toFixed(1)}km<br>${formattedDate}<br>${formattedTime}`;
         return { left, depth, size, color, info };
     });
-
-    // --- ### CORREÇÃO 1: LÓGICA DO MAPA 24H ADICIONADA AQUI ### ---
-    const sortedSismos = sismos.sort((a, b) => a.time - b.time); // Ordena por tempo (antigo para novo)
 
     const mapReplayPoints = sortedSismos.map(sismo => {
         if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
@@ -262,3 +263,4 @@ async function runAnalysis() {
 
 // Inicia o processo
 runAnalysis();
+
