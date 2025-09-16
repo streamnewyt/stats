@@ -110,13 +110,14 @@ async function calculateDailyStats() {
     });
 
     return {
-        totalSismos: sismos.length,
-        magCounts: filteredMagCounts,
-        maxDepth: maxDepthInSismos,
-        gridMaxDepth: finalMaxDepth,
-        depthScalePoints: depthScale.filter(s => s.depth <= finalMaxDepth),
-        scatterPlotPoints: scatterPlotPoints
-    };
+    totalSismos: sismos.length,
+    magCounts: filteredMagCounts,
+    maxDepth: maxDepthInSismos,
+    gridMaxDepth: finalMaxDepth,
+    depthScalePoints: depthScale.filter(s => s.depth <= finalMaxDepth),
+    scatterPlotPoints: scatterPlotPoints,
+    mapReplayPoints: mapReplayPoints // <-- ADICIONA ESTA LINHA
+};
 }
 
 /**
@@ -188,19 +189,21 @@ async function calculateWeeklyStats() {
     });
 
     // Pré-calcula os pontos para o replay do mapa (apenas dados essenciais)
+    const sortedSismos = sismos.sort((a, b) => a.time - b.time); // Ordena por tempo (antigo para novo)
+
     const mapReplayPoints = sortedSismos.map(sismo => {
-        if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
-        const lon = sismo.geometry.coordinates[0];
-        const lat = sismo.geometry.coordinates[1];
-        if (lon == null || lat == null) return null;
-        
-        return {
-            lon: lon,
-            lat: lat,
-            mag: sismo.mag,
-            color: getSismoColor(sismo.mag)
-        };
-    }).filter(p => p !== null); // Remove qualquer sismo inválido
+    if (!sismo.geometry || !sismo.geometry.coordinates || sismo.geometry.coordinates.length < 2) return null;
+    const lon = sismo.geometry.coordinates[0];
+    const lat = sismo.geometry.coordinates[1];
+    if (lon == null || lat == null) return null;
+
+    return {
+        lon: lon,
+        lat: lat,
+        mag: sismo.mag,
+        color: getSismoColor(sismo.mag)
+    };
+    }).filter(p => p !== null);
 
     return {
         totalSismos: sortedSismos.length,
@@ -243,4 +246,5 @@ async function runAnalysis() {
 }
 
 // Inicia o processo
+
 runAnalysis();
