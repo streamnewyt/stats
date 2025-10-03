@@ -138,7 +138,7 @@ async function calculateDailyStats() {
         },
         sismos: sortedSismos // Retorna a lista de sismos também
     };
-
+}
 /**
  * CALCULA APENAS as estatísticas de 7 Dias. Não gera HTML.
  */
@@ -272,4 +272,5 @@ async function runAnalysis() {
 
 // Inicia o processo
 runAnalysis();
+
 
