@@ -1,4 +1,4 @@
-// processar_stats.js - VERSÃO FINAL E CORRIGIDA
+// processar_stats.js
 
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -33,12 +33,14 @@ function formatEarthquakeDateTime(timestamp) {
 
 // --- 2. LÓGICA DE BUSCA DE DADOS ---
 async function fetchCombinedQuakeData(startTime, endTime) {
-    const USGS_URL = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime.toISOString()}&endtime=${endTime.toISOString()}&minmagnitude=1.0`;
-    const EMSC_URL = `https://www.seismicportal.eu/fdsnws/event/1/query?starttime=${startTime.toISOString().slice(0, 19)}&endtime=${endTime.toISOString().slice(0, 19)}&minmag=1.0&format=json&limit=2000`;
+    const USGS_URL = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startTime.toISOString()}&endtime=${endTime.toISOString()}&minmagnitude=0.1`;
+    
+    const EMSC_URL = `https://www.seismicportal.eu/fdsnws/event/1/query?starttime=${startTime.toISOString().slice(0, 19)}&endtime=${endTime.toISOString().slice(0, 19)}&minmag=0.1&format=json&limit=3000`;
 
-    const normalizeUsgs = (f) => ({ ...f.properties, geometry: f.geometry, source: 'USGS', id: f.id });
+    
+    const normalizeUsgs = (f) => ({ ...f.properties, magnitude: f.properties.mag, geometry: f.geometry, source: 'USGS', id: f.id });
     const normalizeEmsc = (f) => ({
-        mag: f.properties.mag, place: f.properties.flynn_region, time: new Date(f.properties.time).getTime(),
+        magnitude: f.properties.mag, place: f.properties.flynn_region, time: new Date(f.properties.time).getTime(),
         depth: f.properties.depth, id: f.id,
         geometry: { coordinates: [f.properties.lon, f.properties.lat, f.properties.depth] }, source: f.properties.auth || 'EMSC'
     });
@@ -54,9 +56,11 @@ async function fetchCombinedQuakeData(startTime, endTime) {
     if (results[0].status === 'fulfilled' && results[0].value.features) allSismosRaw.push(...results[0].value.features.map(normalizeUsgs));
     if (results[1].status === 'fulfilled' && results[1].value.features) allSismosRaw.push(...results[1].value.features.map(normalizeEmsc));
 
-    const uniqueSismos = Array.from(new Map(allSismosRaw.map(s => [s.id || `${Math.round(s.time/60000)}-${s.mag}`, s])).values());
+    
+    const uniqueSismos = Array.from(new Map(allSismosRaw.map(s => [s.id || `${Math.round(s.time/60000)}-${s.magnitude}`, s])).values());
     return uniqueSismos;
 }
+
 
 // --- 3. FUNÇÕES DE CÁLCULO ---
 async function calculateDailyStats() {
@@ -67,7 +71,8 @@ async function calculateDailyStats() {
 
     const magCounts = {};
     sortedSismos.forEach(quake => {
-        const magFloor = Math.floor(quake.mag);
+        
+        const magFloor = Math.floor(quake.magnitude);
         const key = `M${magFloor}`;
         magCounts[key] = (magCounts[key] || 0) + 1;
     });
@@ -81,15 +86,17 @@ async function calculateDailyStats() {
         const left = (1 - (timeAgo / timeWindow)) * 100;
         const depth = Math.max(0, sismo.depth || (sismo.geometry ? sismo.geometry.coordinates[2] : 0));
         const { formattedDate, formattedTime } = formatEarthquakeDateTime(sismo.time);
+        
         return {
-            left, depth, size: 4 + (sismo.mag * 1.5), color: getSismoColor(sismo.mag),
-            info: `M${sismo.mag.toFixed(1)} @ ${depth.toFixed(1)}km<br>${formattedDate}<br>${formattedTime}`
+            left, depth, size: 4 + (sismo.magnitude * 1.5), color: getSismoColor(sismo.magnitude),
+            info: `M${sismo.magnitude.toFixed(1)} @ ${depth.toFixed(1)}km<br>${formattedDate}<br>${formattedTime}`
         };
     });
 
     const mapReplayPoints = sortedSismos.map(sismo => {
         if (!sismo.geometry || !sismo.geometry.coordinates) return null;
-        return { lon: sismo.geometry.coordinates[0], lat: sismo.geometry.coordinates[1], mag: sismo.mag, color: getSismoColor(sismo.mag) };
+        
+        return { lon: sismo.geometry.coordinates[0], lat: sismo.geometry.coordinates[1], mag: sismo.magnitude, color: getSismoColor(sismo.magnitude) };
     }).filter(p => p && p.lon != null && p.lat != null);
 
     return {
@@ -101,7 +108,7 @@ async function calculateDailyStats() {
         },
         sismos: sortedSismos
     };
-} // <-- **ESTA CHAVE ESTAVA FALTANDO**
+}
 
 async function calculateWeeklyStats() {
     const now = new Date();
@@ -111,15 +118,16 @@ async function calculateWeeklyStats() {
 
     const magFilterStats = { range1: 0, range_M3: 0, range_M4: 0, range_M5: 0, range_M6: 0, range_M7: 0, range_M8: 0, range_M9plus: 0 };
     sortedSismos.forEach(sismo => {
-        const mag = sismo.mag;
-        if (mag >= 9.0) magFilterStats.range_M9plus++;
-        else if (mag >= 8.0) magFilterStats.range_M8++;
-        else if (mag >= 7.0) magFilterStats.range_M7++;
-        else if (mag >= 6.0) magFilterStats.range_M6++;
-        else if (mag >= 5.0) magFilterStats.range_M5++;
-        else if (mag >= 4.0) magFilterStats.range_M4++;
-        else if (mag >= 3.0) magFilterStats.range_M3++;
-        else if (mag >= 0.1) magFilterStats.range1++;
+        
+        const magnitude = sismo.magnitude;
+        if (magnitude >= 9.0) magFilterStats.range_M9plus++;
+        else if (magnitude >= 8.0) magFilterStats.range_M8++;
+        else if (magnitude >= 7.0) magFilterStats.range_M7++;
+        else if (magnitude >= 6.0) magFilterStats.range_M6++;
+        else if (magnitude >= 5.0) magFilterStats.range_M5++;
+        else if (magnitude >= 4.0) magFilterStats.range_M4++;
+        else if (magnitude >= 3.0) magFilterStats.range_M3++;
+        else if (magnitude >= 0.1) magFilterStats.range1++;
     });
 
     const dailyData = {};
@@ -132,30 +140,33 @@ async function calculateWeeklyStats() {
         const key = new Date(quake.time).toISOString().split('T')[0];
         if (dailyData[key]) {
             dailyData[key].count++;
-            if (quake.mag > dailyData[key].maxMag) dailyData[key].maxMag = quake.mag;
+            // CORREÇÃO: Modificado para usar 'magnitude'
+            if (quake.magnitude > dailyData[key].maxMag) dailyData[key].maxMag = quake.magnitude;
         }
     });
     const weeklyBarData = Object.values(dailyData).sort((a, b) => a.date - b.date).map(d => ({
         count: d.count, maxMag: d.maxMag, dayLabel: translations_en_fake.weekdays[d.date.getDay()],
         dateKey: d.date.toISOString().split('T')[0]
     }));
-
+    
     const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000;
     const weeklyScatterPoints = sortedSismos.map(sismo => {
         const timeAgo = now - sismo.time;
         const left = (1 - (timeAgo / sevenDaysInMillis)) * 100;
         const depth = Math.max(0, sismo.depth || (sismo.geometry ? sismo.geometry.coordinates[2] : 0));
         const { formattedDate, formattedTime } = formatEarthquakeDateTime(sismo.time);
+        
         return {
-            left, depth, size: 3 + (sismo.mag * 1.2), color: getSismoColor(sismo.mag),
-            info: `M${sismo.mag.toFixed(1)} @ ${depth.toFixed(1)}km<br>${formattedDate}<br>${formattedTime}`,
-            mag: sismo.mag, dateKey: new Date(sismo.time).toISOString().split('T')[0]
+            left, depth, size: 3 + (sismo.magnitude * 1.2), color: getSismoColor(sismo.magnitude),
+            info: `M${sismo.magnitude.toFixed(1)} @ ${depth.toFixed(1)}km<br>${formattedDate}<br>${formattedTime}`,
+            mag: sismo.magnitude, dateKey: new Date(sismo.time).toISOString().split('T')[0]
         };
     });
 
     const mapReplayPoints = sortedSismos.map(sismo => {
         if (!sismo.geometry || !sismo.geometry.coordinates) return null;
-        return { lon: sismo.geometry.coordinates[0], lat: sismo.geometry.coordinates[1], mag: sismo.mag, color: getSismoColor(sismo.mag) };
+        
+        return { lon: sismo.geometry.coordinates[0], lat: sismo.geometry.coordinates[1], mag: sismo.magnitude, color: getSismoColor(sismo.magnitude) };
     }).filter(p => p && p.lon != null && p.lat != null);
 
     return {
@@ -168,7 +179,7 @@ async function calculateWeeklyStats() {
         },
         sismos: sortedSismos
     };
-} // <-- **E ESTA CHAVE TAMBÉM ESTAVA FALTANDO**
+}
 
 // --- 4. FUNÇÃO PRINCIPAL (MAIN) DO SCRIPT ---
 async function runAnalysis() {
@@ -183,11 +194,11 @@ async function runAnalysis() {
             lastUpdated: new Date().toISOString(),
             daily: {
                 ...dailyResult.stats,
-                sismos: dailyResult.sismos // Adiciona a lista de sismos
+                sismos: dailyResult.sismos
             },
             weekly: {
                 ...weeklyResult.stats,
-                sismos: weeklyResult.sismos // Adiciona a lista de sismos
+                sismos: weeklyResult.sismos
             }
         };
 
@@ -198,7 +209,7 @@ async function runAnalysis() {
 
     } catch (error) {
         console.error("ERRO FATAL durante o processamento das estatísticas:", error);
-        process.exit(1); // Finaliza o script com erro para o GitHub Action saber que falhou
+        process.exit(1);
     }
 }
 
