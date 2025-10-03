@@ -38,12 +38,34 @@ async function fetchCombinedQuakeData(startTime, endTime) {
     const EMSC_URL = `https://www.seismicportal.eu/fdsnws/event/1/query?starttime=${startTime.toISOString().slice(0, 19)}&endtime=${endTime.toISOString().slice(0, 19)}&minmag=0.1&format=json&limit=3000`;
 
     
-    const normalizeUsgs = (f) => ({ ...f.properties, magnitude: f.properties.mag, geometry: f.geometry, source: 'USGS', id: f.id });
-    const normalizeEmsc = (f) => ({
-        magnitude: f.properties.mag, place: f.properties.flynn_region, time: new Date(f.properties.time).getTime(),
-        depth: f.properties.depth, id: f.id,
-        geometry: { coordinates: [f.properties.lon, f.properties.lat, f.properties.depth] }, source: f.properties.auth || 'EMSC'
-    });
+    const normalizeUsgs = (f) => {
+        // Garante que a geometria e coordenadas existam
+        if (!f.geometry || !f.geometry.coordinates) return null;
+        return {
+            ...f.properties,
+            magnitude: f.properties.mag,
+            geometry: f.geometry,
+            source: 'USGS',
+            id: f.id,
+            lat: f.geometry.coordinates[1],
+            lon: f.geometry.coordinates[0]
+        };
+    };
+
+    const normalizeEmsc = (f) => {
+        if (!f.properties || f.properties.lat == null || f.properties.lon == null) return null;
+        return {
+            magnitude: f.properties.mag,
+            place: f.properties.flynn_region,
+            time: new Date(f.properties.time).getTime(),
+            depth: f.properties.depth,
+            id: f.id,
+            geometry: { coordinates: [f.properties.lon, f.properties.lat, f.properties.depth] },
+            source: f.properties.auth || 'EMSC',
+            lat: f.properties.lat,
+            lon: f.properties.lon
+        };
+    };
 
     const fetchPromises = [
         fetch(USGS_URL).then(res => res.ok ? res.json() : { features: [] }),
@@ -215,3 +237,4 @@ async function runAnalysis() {
 
 // Inicia o processo
 runAnalysis();
+
