@@ -127,15 +127,17 @@ async function calculateDailyStats() {
     }).filter(p => p !== null);
 
     return {
-        totalSismos: sismos.length,
-        magCounts: filteredMagCounts,
-        maxDepth: maxDepthInSismos,
-        gridMaxDepth: finalMaxDepth,
-        depthScalePoints: depthScale.filter(s => s.depth <= finalMaxDepth),
-        scatterPlotPoints: scatterPlotPoints,
-        mapReplayPoints: mapReplayPoints
-    };
-}
+        stats: {
+            totalSismos: sismos.length,
+            magCounts: filteredMagCounts,
+            maxDepth: maxDepthInSismos,
+            gridMaxDepth: finalMaxDepth,
+            depthScalePoints: depthScale.filter(s => s.depth <= finalMaxDepth),
+            scatterPlotPoints: scatterPlotPoints,
+            mapReplayPoints: mapReplayPoints
+        },
+        sismos: sortedSismos // Retorna a lista de sismos também
+    };
 
 /**
  * CALCULA APENAS as estatísticas de 7 Dias. Não gera HTML.
@@ -221,44 +223,53 @@ async function calculateWeeklyStats() {
     }).filter(p => p !== null);
 
     return {
-        totalSismos: sortedSismos.length,
-        magFilterStats: magFilterStats,
-        weeklyBarData: weeklyBarData,
-        maxDepth: maxDepthInSismos,
-        gridMaxDepth: finalMaxDepth,
-        depthScalePoints: depthScale.filter(s => s.depth <= finalMaxDepth),
-        weeklyScatterPoints: weeklyScatterPoints,
-        mapReplayPoints: mapReplayPoints
-    };
-}
+        stats: {
+            totalSismos: sortedSismos.length,
+            magFilterStats: magFilterStats,
+            weeklyBarData: weeklyBarData,
+            maxDepth: maxDepthInSismos,
+            gridMaxDepth: finalMaxDepth,
+            depthScalePoints: depthScale.filter(s => s.depth <= finalMaxDepth),
+            weeklyScatterPoints: weeklyScatterPoints,
+            mapReplayPoints: mapReplayPoints
+        },
+        sismos: sortedSismos // Retorna a lista de sismos também
+    };
 
 
 // --- 4. FUNÇÃO PRINCIPAL (MAIN) DO SCRIPT ---
 
 async function runAnalysis() {
-    console.log("Iniciando processo de análise de backend...");
-    try {
-        const [dailyStats, weeklyStats] = await Promise.all([
-            calculateDailyStats(),
-            calculateWeeklyStats()
-        ]);
-        
-        const finalCacheObject = {
-            lastUpdated: new Date().toISOString(),
-            daily: dailyStats,
-            weekly: weeklyStats
-        };
+    console.log("Iniciando processo de análise de backend...");
+    try {
+        
+        const dailyResult = await calculateDailyStats();
+        const weeklyResult = await calculateWeeklyStats();
+        
 
-        // Salva o resultado num ficheiro JSON
-        fs.writeFileSync('stats_cache.json', JSON.stringify(finalCacheObject, null, 2));
-        
-        console.log("SUCESSO: stats_cache.json foi criado.");
-        console.log(`Resumo: ${dailyStats.totalSismos} sismos (24h), ${weeklyStats.totalSismos} sismos (7d).`);
+        const dailySismosList = dailyResult.sismos;
+        const weeklySismosList = weeklyResult.sismos;
 
-    } catch (error) {
-        console.error("ERRO FATAL durante o processamento das estatísticas:", error);
-    }
+        dailyResult.stats.sismos = dailySismosList;
+        weeklyResult.stats.sismos = weeklySismosList;
+
+        const finalCacheObject = {
+            lastUpdated: new Date().toISOString(),
+            daily: dailyResult.stats,
+            weekly: weeklyResult.stats
+        };
+
+        // Salva o resultado num ficheiro JSON
+        fs.writeFileSync('stats_cache.json', JSON.stringify(finalCacheObject, null, 2));
+        
+        console.log("SUCESSO: stats_cache.json foi criado.");
+        console.log(`Resumo: ${dailyResult.stats.totalSismos} sismos (24h), ${weeklyResult.stats.totalSismos} sismos (7d).`);
+
+    } catch (error) {
+        console.error("ERRO FATAL durante o processamento das estatísticas:", error);
+    }
 }
 
 // Inicia o processo
 runAnalysis();
+
