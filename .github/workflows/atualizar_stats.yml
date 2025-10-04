@@ -11,7 +11,7 @@ on:
 # de volta no teu repositório.
 permissions:
   contents: write
-# --- ^ FIM DA CORREÇÃO ^ ---
+
 
 jobs:
   build-stats:
